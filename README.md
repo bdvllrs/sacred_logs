@@ -13,6 +13,21 @@ Manages file logs in sacred.
 
 ## Quickstart
 
+### Cli
+```
+sacredlogs tomongo [OPTIONS] PATH DB_NAME
+```
+- `PATH`: path to the file log folder
+- `DB_NAME`: name of the mongo database to export to.
+
+#### Options
+- `--basedir`, `-b`: base directory for the sources. Defaults to current folder.
+- `--url`, `-u`: mongo db server url. Defaults to "127.0.0.1:27017"
+- `--overwrite`, `-o`: id of the experiment to overwrite.
+- `--skip_sources`, `-s`: skip importing sources in the mongo database.
+
+### Code
+
 ```python
 import matplotlib.pyplot as plt
 from sacred_logs import FileLog
