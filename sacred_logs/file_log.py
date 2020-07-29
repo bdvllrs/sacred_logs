@@ -100,26 +100,18 @@ class FileLog:
         if item in self.run:
             return self.run[item]
 
-    def to_mongo(self, base_dir, force_running_exp=False, remove_sources=False,
+    def to_mongo(self, base_dir, remove_sources=False,
                  overwrite=None, *args, **kwargs):
         """
         Exports the file log into a mongo database.
         Requires sacred to be installed.
         Args:
             base_dir: root path to sources
-            force_running_exp: add the experiment event if the experiment is still running.
             remove_sources: if sources are too complicated to match
             overwrite: whether to overwrite an experiment
             *args: args of the MongoObserver
             **kwargs: keyword args of the MongoObserver
         """
-        stop_time = None
-        if not force_running_exp:
-            assert self.status != "RUNNING", ("Cannot add a still running experiment. "
-                                              "Use `force_running_exp=True` to do it anyways.")
-        else:
-            stop_time = datetime.datetime.fromisoformat(self.heartbeat)
-
         from sacred.observers import MongoObserver
         from sacred.metrics_logger import ScalarMetricLogEntry, linearize_metrics
 
@@ -173,10 +165,12 @@ class FileLog:
         )
 
         # End simulation
-        stop_time = stop_time or datetime.datetime.fromisoformat(self.stop_time)
-        if self.status in ["COMPLETED", "RUNNING"]:  # If still running we force it as a finished experiment
-            mongo_observer.completed_event(stop_time, self.result)
-        elif self.status == "INTERRUPTED":
-            mongo_observer.interrupted_event(stop_time, 'INTERRUPTED')
-        elif self.status == "FAILED":
-            mongo_observer.failed_event(stop_time, self.fail_trace)
+        if self.status != "RUNNING":
+            stop_time = datetime.datetime.fromisoformat(self.stop_time)
+
+            if self.status in ["COMPLETED", "RUNNING"]:  # If still running we force it as a finished experiment
+                mongo_observer.completed_event(stop_time, self.result)
+            elif self.status == "INTERRUPTED":
+                mongo_observer.interrupted_event(stop_time, 'INTERRUPTED')
+            elif self.status == "FAILED":
+                mongo_observer.failed_event(stop_time, self.fail_trace)
