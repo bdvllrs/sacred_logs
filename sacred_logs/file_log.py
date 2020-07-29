@@ -148,10 +148,20 @@ class FileLog:
             mongo_observer.resource_event(resource[0])
 
         # Add metrics
-        # FIXME: when overwriting, metrics don't behave correctly
+        size_metrics = {}
+        # If overwrite, get the already added metrics.
+        # FIXME: issue if steps are not increasing
+        if overwrite is not None:
+            metrics = mongo_observer.metrics.find({"run_id": overwrite})
+            for metric in metrics:
+                size_metrics[metric['name']] = len(metric['steps'])
+
         log_metrics = []
         for metric_name, metric in self.metrics.items():
-            for step, timestamp, value in zip(metric['steps'], metric['timestamps'], metric['values']):
+            steps = metric['steps'] if metric_name not in size_metrics else metric['steps'][size_metrics[metric_name]:]
+            timestamps = metric['timestamps'] if metric_name not in size_metrics else metric['timestamps'][size_metrics[metric_name]:]
+            values = metric['values'] if metric_name not in size_metrics else metric['values'][size_metrics[metric_name]:]
+            for step, timestamp, value in zip(steps, timestamps, values):
                 metric_log_entry = ScalarMetricLogEntry(metric_name, step,
                                                         datetime.datetime.fromisoformat(timestamp), value)
                 log_metrics.append(metric_log_entry)

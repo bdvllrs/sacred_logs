@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+import os
+
 from sacred_logs import FileLog
 
 
@@ -6,10 +8,10 @@ if __name__ == "__main__":
     # Load a log
     log = FileLog("/path/to/file/log/folder")
     # Save if to a mongo database
-    log.to_mongo(base_dir="/path/to/project/source",
+    log.to_mongo(base_dir=os.getcwd(),
                  # overwrite=1,  # to overwrite a specific experiment
                  url="127.0.0.1:27017",
-                 db_name="db_name")
+                 db_name="mongodb_name")
 
     # Or directly work with it...
     # Config used
@@ -18,7 +20,7 @@ if __name__ == "__main__":
     cout = log.cout
     # Information on the run
     run_info = log.run
-    # You can also use log[run_item] instead of log.run[run_item]
+    # You can also use log[run_item] or log.run_item instead of log.run[run_item]
     seed = log.seed
     # Get metrics
     train_acc = log.get_metric('train_acc',
