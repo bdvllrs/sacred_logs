@@ -9,8 +9,6 @@ def cli():
     """
     Entry point of the CLI. You can execute other commands from here.
     For example:
-    $ pin create
-    to create a new project.
     Type a command with `--help` to get more information.
     """
     pass
