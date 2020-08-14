@@ -100,22 +100,18 @@ class FileLog:
         if item in self.run:
             return self.run[item]
 
-    def to_mongo(self, base_dir, remove_sources=False,
-                 overwrite=None, *args, **kwargs):
+    def export(self, observer, base_dir, remove_sources=False,
+               overwrite=None):
         """
-        Exports the file log into a mongo database.
+        Exports the file log into another observer.
         Requires sacred to be installed.
         Args:
+            observer: Observer to export to
             base_dir: root path to sources
             remove_sources: if sources are too complicated to match
             overwrite: whether to overwrite an experiment
-            *args: args of the MongoObserver
-            **kwargs: keyword args of the MongoObserver
         """
-        from sacred.observers import MongoObserver
         from sacred.metrics_logger import ScalarMetricLogEntry, linearize_metrics
-
-        mongo_observer = MongoObserver(*args, overwrite=overwrite, **kwargs)
 
         # Start simulation of run
         experiment = self.experiment.copy()
@@ -123,7 +119,7 @@ class FileLog:
         # FIXME
         experiment['sources'] = [] if remove_sources else update_source_path_prefix(base_dir, experiment['sources'])
         try:
-            mongo_observer.started_event(
+            observer.started_event(
                 experiment,
                 self.command,
                 self.host,
@@ -138,36 +134,38 @@ class FileLog:
 
         # Add artifacts
         for artifact_name in self.artifacts:
-            mongo_observer.artifact_event(
+            observer.artifact_event(
                 name=artifact_name,
                 filename=(self.path / artifact_name)
             )
 
         # Add resources
         for resource in self.resources:
-            mongo_observer.resource_event(resource[0])
+            observer.resource_event(resource[0])
 
         # Add metrics
         size_metrics = {}
         # If overwrite, get the already added metrics.
         # FIXME: issue if steps are not increasing
         if overwrite is not None:
-            metrics = mongo_observer.metrics.find({"run_id": overwrite})
+            metrics = observer.metrics.find({"run_id": overwrite})
             for metric in metrics:
                 size_metrics[metric['name']] = len(metric['steps'])
 
         log_metrics = []
         for metric_name, metric in self.metrics.items():
             steps = metric['steps'] if metric_name not in size_metrics else metric['steps'][size_metrics[metric_name]:]
-            timestamps = metric['timestamps'] if metric_name not in size_metrics else metric['timestamps'][size_metrics[metric_name]:]
-            values = metric['values'] if metric_name not in size_metrics else metric['values'][size_metrics[metric_name]:]
+            timestamps = metric['timestamps'] if metric_name not in size_metrics else metric['timestamps'][
+                                                                                      size_metrics[metric_name]:]
+            values = metric['values'] if metric_name not in size_metrics else metric['values'][
+                                                                              size_metrics[metric_name]:]
             for step, timestamp, value in zip(steps, timestamps, values):
                 metric_log_entry = ScalarMetricLogEntry(metric_name, step,
                                                         datetime.datetime.fromisoformat(timestamp), value)
                 log_metrics.append(metric_log_entry)
-        mongo_observer.log_metrics(linearize_metrics(log_metrics), {})
+        observer.log_metrics(linearize_metrics(log_metrics), {})
 
-        mongo_observer.heartbeat_event(
+        observer.heartbeat_event(
             info=self.info if 'info' in self.run else None,
             captured_out=self.cout,
             beat_time=datetime.datetime.fromisoformat(self.heartbeat),
@@ -179,8 +177,41 @@ class FileLog:
             stop_time = datetime.datetime.fromisoformat(self.stop_time)
 
             if self.status in ["COMPLETED", "RUNNING"]:  # If still running we force it as a finished experiment
-                mongo_observer.completed_event(stop_time, self.result)
+                observer.completed_event(stop_time, self.result)
             elif self.status == "INTERRUPTED":
-                mongo_observer.interrupted_event(stop_time, 'INTERRUPTED')
+                observer.interrupted_event(stop_time, 'INTERRUPTED')
             elif self.status == "FAILED":
-                mongo_observer.failed_event(stop_time, self.fail_trace)
+                observer.failed_event(stop_time, self.fail_trace)
+
+    def to_mongo(self, base_dir, remove_sources=False,
+                 overwrite=None, *args, **kwargs):
+        """
+        Exports the file log into a mongo database.
+        Requires sacred to be installed.
+        Args:
+            base_dir: root path to sources
+            remove_sources: if sources are too complicated to match
+            overwrite: whether to overwrite an experiment
+            *args: args of the MongoObserver
+            **kwargs: keyword args of the MongoObserver
+        """
+        from sacred.observers import MongoObserver
+
+        observer = MongoObserver(*args, overwrite=overwrite, **kwargs)
+        self.export(observer, base_dir, remove_sources, overwrite)
+
+    def to_neptune(self, base_dir, remove_sources=False,
+                   *args, **kwargs):
+        """
+        Exports the file log into neptune database.
+        Requires sacred to be installed.
+        Args:
+            base_dir: root path to sources
+            remove_sources: if sources are too complicated to match
+            *args: args of the MongoObserver
+            **kwargs: keyword args of the MongoObserver
+        """
+        from neptunecontrib.monitoring.sacred import NeptuneObserver
+
+        observer = NeptuneObserver(*args, **kwargs)
+        self.export(observer, base_dir, remove_sources, overwrite=False)

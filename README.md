@@ -15,16 +15,27 @@ Manages file logs in sacred.
 
 ### Cli
 ```
-sacredlogs tomongo [OPTIONS] PATH DB_NAME
+sacredlogs export [OPTIONS] OBSERVER PATH DB_NAME
 ```
+- `OBSERVER`: What observer to export to (mongo or neptune)
 - `PATH`: path to the file log folder
-- `DB_NAME`: name of the mongo database to export to.
+- `DB_NAME`: name of the mongo database or neptune project name to export to.
 
 #### Options
+- `--token`, `-t`: Neptune API token.
 - `--basedir`, `-b`: base directory for the sources. Defaults to current folder.
 - `--url`, `-u`: mongo db server url. Defaults to "127.0.0.1:27017"
 - `--overwrite`, `-o`: id of the experiment to overwrite.
 - `--skip_sources`, `-s`: skip importing sources in the mongo database.
+
+#### Examples:
+```
+sacredlogs export mongo /path/to/file/log my_mongo_db
+```
+
+```
+sacredlogs export neptune /path/to/file/log USER_NAME/PROJECT_NAME --token=YOUR_API_TOKEN
+```
 
 ### Code
 
